@@ -9,23 +9,19 @@
 
 <!-- Firebase SDK -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
   import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, serverTimestamp }
-    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
-  // ============================================================
-  // 🔧 ZAMIJENI S TVOJIM FIREBASE CONFIG-OM
-  // Firebase Console → Project Settings → Your apps → Config
-  // ============================================================
   const firebaseConfig = {
-    apiKey: "TVOJ_API_KEY",
-    authDomain: "TVOJ_PROJECT.firebaseapp.com",
-    projectId: "TVOJ_PROJECT_ID",
-    storageBucket: "TVOJ_PROJECT.appspot.com",
-    messagingSenderId: "TVOJ_SENDER_ID",
-    appId: "TVOJ_APP_ID"
+    apiKey: "AIzaSyCniWZQ9HpG8Wn31HCfrURcoaXhysNBbVw",
+    authDomain: "crypto-klad-9d6ea.firebaseapp.com",
+    projectId: "crypto-klad-9d6ea",
+    storageBucket: "crypto-klad-9d6ea.firebasestorage.app",
+    messagingSenderId: "621292631582",
+    appId: "1:621292631582:web:6bd5372baf8a81dc3da00f"
   };
 
   const app = initializeApp(firebaseConfig);
@@ -315,12 +311,7 @@
   #toast.err{border-left-color:var(--red);}
 
   /* ── FIREBASE MSG ── */
-  #fbStatus{
-    position:fixed;top:68px;left:50%;transform:translateX(-50%);z-index:500;
-    background:#1a0a00;border:1px solid var(--gold);border-radius:8px;padding:12px 20px;
-    font-size:13px;color:var(--gold);text-align:center;max-width:94vw;display:none;
-    box-shadow:0 4px 24px rgba(0,0,0,.5);
-  }
+
 
   @media(max-width:600px){
     .hero h1{font-size:52px;}
@@ -346,10 +337,7 @@
 <body>
 
 <!-- FIREBASE CONFIG WARNING -->
-<div id="fbStatus">
-  ⚠️ Firebase nije konfiguriran! Otvori <code>index.html</code> i zamijeni Firebase config na vrhu.
-  <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent);margin-left:6px">Firebase Console →</a>
-</div>
+<!-- Firebase konfiguriran -->
 
 <!-- NAV -->
 <nav>
@@ -500,16 +488,7 @@ window.onAuthReady = function() {
 };
 
 // Check if Firebase is configured
-setTimeout(() => {
-  if (!window._fb) {
-    document.getElementById('fbStatus').style.display = 'block';
-  } else {
-    const cfg = window._fb.auth.app.options;
-    if (cfg.apiKey === 'TVOJ_API_KEY') {
-      document.getElementById('fbStatus').style.display = 'block';
-    }
-  }
-}, 1500);
+// Firebase konfiguriran ✓
 
 // =====================================================
 // AUTH HELPERS
