@@ -396,12 +396,7 @@
   <div class="ftabs" id="dateTabs">
     <button class="ftab active" onclick="filterDate('all',this)">Sve</button>
   </div>
-  <!-- Status filter -->
-  <div class="ftabs" id="statusTabs" style="margin-top:-8px;margin-bottom:18px">
-    <button class="ftab active" onclick="filterStatus('all',this)">Sve</button>
-    <button class="ftab" onclick="filterStatus('up',this)">Predstojeće</button>
-    <button class="ftab" onclick="filterStatus('done',this)">Završene</button>
-  </div>
+
   <div id="matchesWrap">
     <div class="loading"><div class="spinner"></div>Učitavanje...</div>
   </div>
@@ -626,6 +621,72 @@ function splitTimovi(utakmica) {
   return [normalized.slice(0, idx).trim(), normalized.slice(idx + 3).trim()];
 }
 
+let curDate = 'all';
+
+// Vrati sheet name iz match ID-a (npr. "18.3._2" → "18.3.")
+function sheetOfMatch(m) {
+  return m.id.replace(/_\d+$/, '');
+}
+
+// Provjeri je li sheet naziv današnji datum (npr. "19.3." === danas)
+function isToday(sheetName) {
+  const now = new Date();
+  const d = now.getDate();
+  const mo = now.getMonth() + 1;
+  return sheetName === d + '.' + mo + '.' || sheetName === d + '.' + mo;
+}
+
+function buildDateTabs() {
+  const dates = [];
+  allMatches.forEach(m => {
+    const s = sheetOfMatch(m);
+    if (!dates.includes(s)) dates.push(s);
+  });
+
+  const container = document.getElementById('dateTabs');
+  // Build buttons safely using DOM (ne innerHTML sa navodnicima)
+  container.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'ftab' + (curDate === 'all' ? ' active' : '');
+  allBtn.textContent = 'Sve';
+  allBtn.onclick = function() { filterDate('all', this); };
+  container.appendChild(allBtn);
+
+  dates.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'ftab' + (curDate === d ? ' active' : '');
+    btn.textContent = isToday(d) ? d + ' Danas' : d;
+    if (isToday(d)) {
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+      btn.style.background = 'var(--accentA)';
+    }
+    btn.onclick = function() { filterDate(d, this); };
+    container.appendChild(btn);
+  });
+}
+
+function filterDate(date, el) {
+  curDate = date;
+  document.querySelectorAll('#dateTabs .ftab').forEach(t => {
+    t.classList.remove('active');
+    t.style.borderColor = '';
+    t.style.color = '';
+    t.style.background = '';
+  });
+  el.classList.add('active');
+  if (isToday(date)) {
+    el.style.borderColor = 'var(--accent)';
+    el.style.color = 'var(--accent)';
+    el.style.background = 'var(--accentA)';
+  }
+  renderMatches();
+}
+
+// Keep filterM for backward compat
+function filterM(f, el) {}
+
 async function loadMatches() {
   const btn = document.getElementById('refBtn');
   btn.classList.add('spin');
@@ -634,80 +695,35 @@ async function loadMatches() {
     const res = await fetch(SHEETS_URL + '?t=' + Date.now());
     const data = await res.json();
     allMatches = (data.matches || []).map(m => {
-      // Popravi dom/gost ako sadrze cijelu utakmicu (en-dash problem)
       if (!m.gost || m.dom === m.utakmica) {
         const [dom, gost] = splitTimovi(m.utakmica);
         return { ...m, dom, gost };
       }
       return m;
     });
-    renderMatches();
     buildDateTabs();
-    toast(`Učitano ${allMatches.length} utakmica ✓`);
+    renderMatches();
+    toast('Učitano ' + allMatches.length + ' utakmica ✓');
   } catch(e) {
-    document.getElementById('matchesWrap').innerHTML = `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;">
-        <div style="font-size:32px;margin-bottom:12px">⚠️</div>
-        <div style="font-weight:700;margin-bottom:8px">Greška pri učitavanju</div>
-        <div style="font-size:13px;color:var(--text2);max-width:380px;margin:0 auto;line-height:1.6">
-          ${e.message}<br><br>
-          Provjeri je li stranica na <strong>https://</strong> domeni (GitHub Pages/Netlify).
-        </div>
-        <button class="btn btn-outline" style="margin-top:18px" onclick="loadMatches()">↻ Pokušaj ponovo</button>
-      </div>`;
+    console.error(e);
+    document.getElementById('matchesWrap').innerHTML =
+      '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;text-align:center;">' +
+      '<div style="font-size:32px;margin-bottom:12px">⚠️</div>' +
+      '<div style="font-weight:700;margin-bottom:8px">Greška pri učitavanju</div>' +
+      '<div style="font-size:13px;color:var(--text2);max-width:380px;margin:0 auto;line-height:1.6">' +
+      e.message + '<br><br>Provjeri je li stranica na <strong>https://</strong> domeni.</div>' +
+      '<button class="btn btn-outline" style="margin-top:18px" onclick="loadMatches()">↻ Pokušaj ponovo</button></div>';
   } finally {
     btn.classList.remove('spin');
   }
 }
 
-let curDate = 'all', curStatus = 'all';
-
-function filterDate(date, el) {
-  curDate = date;
-  document.querySelectorAll('#dateTabs .ftab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  renderMatches();
-}
-
-function filterStatus(status, el) {
-  curStatus = status;
-  document.querySelectorAll('#statusTabs .ftab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  renderMatches();
-}
-
-// Keep old filterM for backward compat (not used from HTML anymore)
-function filterM(f, el) { filterStatus(f, el); }
-
-function buildDateTabs() {
-  // Extract unique sheet dates from match IDs (format: "18.3._2" → "18.3.")
-  const dates = [];
-  allMatches.forEach(m => {
-    // sheet name is encoded in id before the underscore+number, e.g. "18.3._2"
-    const sheetName = m.id.replace(/_\d+$/, '');
-    if (!dates.includes(sheetName)) dates.push(sheetName);
-  });
-  const container = document.getElementById('dateTabs');
-  const activeDate = curDate;
-  container.innerHTML = '<button class="ftab' + (activeDate==='all'?' active':'') + '" onclick="filterDate('all',this)">Sve</button>';
-  dates.forEach(d => {
-    const active = activeDate === d ? ' active' : '';
-    container.innerHTML += '<button class="ftab' + active + '" onclick="filterDate(''+d+'',this)">'+d+'</button>';
-  });
-}
-
 function renderMatches() {
   const wrap = document.getElementById('matchesWrap');
   let list = allMatches;
-
-  // Filter by date/sheet
   if (curDate !== 'all') {
-    list = list.filter(m => m.id.startsWith(curDate));
+    list = list.filter(m => sheetOfMatch(m) === curDate);
   }
-  // Filter by status
-  if (curStatus === 'up')   list = list.filter(m => !m.rezultat);
-  if (curStatus === 'done') list = list.filter(m =>  m.rezultat);
-
   if (!list.length) {
     wrap.innerHTML = '<div class="empty"><div class="ei">⚽</div><p>Nema utakmica za odabrani filter</p></div>';
     return;
