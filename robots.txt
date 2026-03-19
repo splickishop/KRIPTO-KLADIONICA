@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Blokiranje admin i privatnih ruta
+Disallow: /admin
+Disallow: /admin/
+Disallow: /?admin
+Disallow: /?modal=
+
+# Sitemap
+Sitemap: https://kriptokladionica.com/sitemap.xml
+
+# Crawl delay (opcionalno — sprečava preagresivno puzanje)
+Crawl-delay: 5
