@@ -464,7 +464,7 @@
 // CONFIG — zamijeni s tvojom USDT adresom
 // =====================================================
 const USDT_ADDR  = 'TVOJA_USDT_TRC20_ADRESA'; // ← zamijeni!
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxPjvPLPOQlSvv8GOv5C1BovCkQbiTE9HCxBTS6DTuZKNUiK5xCWN-v4TGNWbYF1aAi/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzyEP6-ogymrYLW8iJn291sTbLV-a5m7dUJbcS42cLsFZ9jAY_u8Eu87wyIkQucf0Ou/exec';
 
 // =====================================================
 // STATE
@@ -663,15 +663,19 @@ function cardHTML(m) {
     if (!val) return `<div class="odd off"><div class="odd-lbl">${lbl}</div><div class="odd-val">—</div></div>`;
     const sel = inSlip && inSlip.type === type ? 'sel' : '';
     const off = done ? 'off' : '';
-    return `<div class="odd ${sel} ${off}" onclick="${done ? '' : `pickOdd('${m.id}','${type}','${lbl}',${val})`}">
+    // escape single quotes in match id just in case
+    const safeId = m.id.replace(/'/g,"&#39;");
+    return `<div class="odd ${sel} ${off}" onclick="${done ? '' : `pickOdd('${safeId}','${type}','${lbl}',${val})`}">
       <div class="odd-lbl">${lbl}</div><div class="odd-val">${val.toFixed(2)}</div>
     </div>`;
   };
+  // natjecanje badge
+  const nat = m.natjecanje ? `<span style="font-size:10px;color:var(--text3);font-style:italic">${m.natjecanje}</span>` : '';
   return `
     <div class="mcard ${inSlip ? 'has-bet' : ''}" id="card_${m.id}">
       <div class="mcard-head">
-        <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px">${m.datum}</span>
-        ${tag}
+        <span style="font-size:11px;color:var(--text2);font-family:var(--fMono)">${m.datum}</span>
+        <div style="display:flex;align-items:center;gap:6px">${nat}${tag}</div>
       </div>
       <div class="mcard-body">
         <div class="teams">
