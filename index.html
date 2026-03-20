@@ -775,6 +775,7 @@ const _db   = getFirestore(_app);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let allMatches = [], slip = [], currentUser = null, curDate = 'all';
+let _authReady = false, _matchesReady = false;
 
 // ── Auth state ────────────────────────────────────────────────────────────────
 onAuthStateChanged(_auth, async (fbUser) => {
@@ -793,11 +794,8 @@ onAuthStateChanged(_auth, async (fbUser) => {
   }
   updateNav();
   updateFab();
-  // Run settlement after auth ready
-  if (currentUser && allMatches.length > 0) {
-    console.log('Auth ready, running settlement. Pending:', currentUser.bets?.filter(b=>b.status==='pending').length);
-    await settleUserBets();
-  }
+  _authReady = true;
+  trySettle();
 });
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -1047,8 +1045,8 @@ async function loadMatches() {
     buildDateTabs();
     renderMatches();
     toast('Učitano ' + allMatches.length + ' utakmica ✓');
-    // Settle bets after every load (catches past-date results)
-    if (currentUser) await settleUserBets();
+    _matchesReady = true;
+    trySettle();
   } catch(e) {
     console.error(e);
     document.getElementById('matchesWrap').innerHTML =
@@ -1228,6 +1226,16 @@ function pickOdd(mid, type, lbl, odd, market) {
 }
 
 // ── Settlement ────────────────────────────────────────────────────────────────
+// Run settlement only when BOTH auth and matches are ready
+async function trySettle() {
+  if (!_authReady || !_matchesReady) return;
+  if (!currentUser) return;
+  const pending = currentUser.bets?.filter(b => b.status === 'pending') || [];
+  if (!pending.length) return;
+  console.log('Both ready — settling', pending.length, 'pending bets');
+  await settleUserBets();
+}
+
 async function settleUserBets() {
   if (!currentUser?.bets?.length) return;
   const resultMap = {};
