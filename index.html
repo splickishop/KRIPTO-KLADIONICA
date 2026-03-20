@@ -602,7 +602,7 @@
 <!-- HERO -->
 <div class="hero">
   <div class="hero-badge">⚡ Brzo &nbsp;•&nbsp; Sigurno &nbsp;•&nbsp; Anonimno</div>
-  <h1>IGRAJ PAMETNO<br><span class="g">IGRAJ KRIPTOM.</span></h1>
+  <h1>IGRAJ PAMETNO<br><span class="g">IGRAJ KRIPTOM</span></h1>
   <p>Sportska kladionica nove generacije.<br>USDT isplate, BEZ dokumenata, potpuna anonimnost — klađenje kako treba biti.</p>
   <button class="btn btn-accent" style="font-size:16px;padding:14px 38px;" onclick="window._ctaClick()">Počni odmah →</button>
 </div>
@@ -690,7 +690,7 @@
     <div class="mbody">
       <div class="infobox">🕵️ <strong>NO-KYC:</strong> Samo email i lozinka. Nikad ne tražimo osobne podatke ni dokumente.</div>
       <div class="fg"><label class="fl">Email</label><input class="fi" type="email" id="rEmail" placeholder="tvoj@email.com"></div>
-      <div class="fg"><label class="fl">Lozinka</label><input class="fi" type="password" id="rPass" placeholder="Minimalno 6 znakova"></div>
+      <div class="fg"><label class="fl">Lozinka</label><input class="fi" type="password" id="rPass" placeholder="Min. 8 znakova, slova i brojevi"></div>
       <div class="fg"><label class="fl">Potvrdi lozinku</label><input class="fi" type="password" id="rPass2" placeholder="Ponovi lozinku" onkeydown="if(event.key==='Enter')doRegister()"></div>
       <button class="btn btn-accent btn-full" onclick="doRegister()">Kreiraj račun</button>
       <div class="divider">ili</div>
@@ -832,6 +832,7 @@ const _db   = getFirestore(_app);
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let allMatches = [], slip = [], currentUser = null, curDate = 'all', curLeague = 'all';
+const openExtras = new Set(); // track which match IDs have extra markets open
 let _authReady = false, _matchesReady = false;
 
 // ── Auth state ────────────────────────────────────────────────────────────────
@@ -1174,6 +1175,13 @@ function renderMatches() {
   const upcoming = list.filter(m => !m.rezultat);
   const done     = list.filter(m =>  m.rezultat);
   wrap.innerHTML = '<div class="matches-grid">' + [...upcoming,...done].map(cardHTML).join('') + '</div>';
+  // Restore open extra markets after DOM rebuild
+  openExtras.forEach(mid => {
+    const div = document.getElementById('extra_' + mid);
+    const btn = document.querySelector('[data-mid="'+mid+'"].more-btn');
+    if (div) { div.classList.add('open'); }
+    if (btn) { btn.textContent = '− Sakrij opcije'; btn.classList.add('open'); }
+  });
   // Settlement runs via onAuthStateChanged and loadMatches
 }
 
@@ -1319,13 +1327,17 @@ function pickOdd(mid, type, lbl, odd, market) {
   if (!currentUser) { toast('Prijavi se za klađenje', true); openM('mLogin'); return; }
   const match = allMatches.find(m => m.id === mid);
   if (!match) return;
-  // Find existing bet on same match+market (can't bet two options same market)
-  const idx = slip.findIndex(b => b.mid === mid && b.market === market);
-  if (idx >= 0) {
-    if (slip[idx].type === type) slip.splice(idx, 1); // deselect
-    else slip[idx] = { mid, match: match.utakmica, type, lbl, odd, market };
+  // One pick per match total — can't have two picks from same match
+  const sameMatchIdx = slip.findIndex(b => b.mid === mid);
+  if (sameMatchIdx >= 0) {
+    if (slip[sameMatchIdx].type === type && slip[sameMatchIdx].market === market) {
+      slip.splice(sameMatchIdx, 1); // deselect same pick
+    } else {
+      toast('Već imaš odabir za ovu utakmicu', true);
+      return;
+    }
   } else {
-    slip.push({ mid, match: match.utakmica, type, lbl, odd, market });
+    slip.push({ mid, match: match.utakmica, liga: match.natjecanje||'', datum: match.datum||'', type, lbl, odd, market });
   }
   updateFab(); renderMatches();
 }
@@ -1550,10 +1562,20 @@ function wTab(n) {
       const isWin = b.status==='win', isLoss=b.status==='loss';
       const itemsHtml = b.items.map(i=>
         '<div style="margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+        +'<div>'
         +'<div style="font-size:14px;font-weight:700;color:var(--text)">'+i.match+'</div>'
+        +(i.liga||i.datum ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;display:flex;gap:8px">'
+          +(i.liga ? '<span>'+i.liga+'</span>' : '')
+          +(i.liga && i.datum ? '<span style="opacity:.4">·</span>' : '')
+          +(i.datum ? '<span>'+i.datum+'</span>' : '')
+          +'</div>' : '')
         +'<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-top:2px">'+marketName(i.market)+'</div>'
         +'<div style="font-size:13px;color:var(--text2);margin-top:3px">Tip: <strong style="color:var(--text)">'+typeName(i.type)+'</strong>'
-        +(i.settled ? (i.win ? ' <span style="color:var(--accent)">✓</span>' : ' <span style="color:var(--red)">✗</span>') : '')
+        +(i.settled ? (i.win ? ' <span style="color:var(--accent)">✓</span>' : ' <span style="color:var(--red,#f44)">✗</span>') : '')
+        +'</div>'
+        +'</div>'
+        +'<div style="font-family:var(--fMono);font-size:16px;font-weight:700;color:var(--accent);flex-shrink:0">'+i.odd.toFixed(2)+'</div>'
         +'</div>'
         +'</div>'
       ).join('');
@@ -1775,6 +1797,8 @@ function toggleExtra(matchId, btn) {
   const el = document.getElementById('extra_'+matchId);
   if (!el) return;
   const isOpen = el.classList.toggle('open');
+  if (isOpen) openExtras.add(matchId);
+  else openExtras.delete(matchId);
   btn.classList.toggle('open', isOpen);
   btn.textContent = isOpen ? '− Sakrij opcije' : '+ Više opcija klađenja';
 }
@@ -1787,9 +1811,9 @@ window.setCurrency         = setCurrency;
 
 window._ctaClick           = () => {
   if (currentUser) {
-    document.querySelector('.section')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('matchesWrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } else {
-    openM('mReg');
+    openM('mLogin');
   }
 };
 window._openLogin          = () => openM('mLogin');
