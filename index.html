@@ -112,6 +112,7 @@
 
   /* ── SECTION ── */
   .section{padding:28px 20px;max-width:1200px;margin:0 auto;}
+  .matches-main .sec-head{margin-bottom:18px;}
   .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
   .sec-title{
     font-family:var(--fDisplay);font-size:26px;letter-spacing:2px;
@@ -419,6 +420,35 @@
   }
   .mobile-currency-btn.active{background:var(--accent);border-color:var(--accent);color:#000;}
 
+  /* ── LEAGUE SIDEBAR ── */
+  .page-layout{display:flex;gap:20px;max-width:1200px;margin:0 auto;padding:0 20px;}
+  .league-sidebar{
+    width:220px;flex-shrink:0;
+  }
+  .sidebar-title{
+    font-size:11px;font-weight:700;color:var(--text3);
+    text-transform:uppercase;letter-spacing:1.5px;
+    padding:0 0 10px;margin-bottom:4px;
+    border-bottom:1px solid var(--border);
+  }
+  .league-item{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 10px;border-radius:7px;cursor:pointer;
+    transition:all .15s;font-size:13px;font-weight:500;color:var(--text2);
+    border:1px solid transparent;
+  }
+  .league-item:hover{background:var(--card);color:var(--text);border-color:var(--border);}
+  .league-item.active{background:var(--accentA);border-color:var(--accent2);color:var(--accent);}
+  .league-item .l-flag{flex-shrink:0;}
+  .league-item .l-name{flex:1;line-height:1.3;}
+  .league-item .l-count{
+    background:var(--bg3);border-radius:10px;
+    padding:1px 7px;font-size:11px;font-family:var(--fMono);
+    color:var(--text3);flex-shrink:0;
+  }
+  .league-item.active .l-count{background:rgba(0,229,160,.15);color:var(--accent);}
+  .matches-main{flex:1;min-width:0;}
+
   /* ── RESPONSIVE ── */
 
   /* Large tablets / small laptops */
@@ -441,6 +471,26 @@
     .user-dot{width:30px;height:30px;font-size:12px;}
   }
   @media(max-width:700px){
+    .league-sidebar{
+      display:block !important;
+      width:100%;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      padding-bottom:4px;
+      margin-bottom:8px;
+    }
+    .sidebar-title{display:none;}
+    #leagueList{
+      display:flex;flex-direction:row;gap:6px;
+      padding:0 0 4px;
+      white-space:nowrap;
+      overflow-x:auto;
+    }
+    .league-item{
+      flex-shrink:0;white-space:nowrap;
+      padding:6px 10px;font-size:12px;
+    }
+    .page-layout{flex-direction:column;padding:0;}
     /* Nav */
     .hamburger{display:flex;}
     .nav-right{display:none !important;}
@@ -586,18 +636,25 @@
 </div>
 
 <!-- MATCHES -->
-<div class="section">
-  <div class="sec-head">
-    <div class="sec-title">Dostupne utakmice</div>
-    <button class="refresh-btn" id="refBtn" onclick="loadMatches()" title="Osvježi">↻</button>
+<div class="page-layout">
+  <!-- League sidebar -->
+  <div class="league-sidebar" id="leagueSidebar" style="display:none">
+    <div class="sidebar-title">Lige</div>
+    <div id="leagueList"></div>
   </div>
-  <!-- Date tabs — auto-generated from sheets -->
-  <div class="ftabs" id="dateTabs">
-    <button class="ftab active" onclick="filterDate('all',this)">Sve</button>
-  </div>
-
-  <div id="matchesWrap">
-    <div class="loading"><div class="spinner"></div>Učitavanje...</div>
+  <!-- Main content -->
+  <div class="matches-main">
+    <div class="sec-head">
+      <div class="sec-title">Dostupne utakmice</div>
+      <button class="refresh-btn" id="refBtn" onclick="loadMatches()" title="Osvježi">↻</button>
+    </div>
+    <!-- Date tabs -->
+    <div class="ftabs" id="dateTabs">
+      <button class="ftab active" onclick="filterDate('all',this)">Sve</button>
+    </div>
+    <div id="matchesWrap">
+      <div class="loading"><div class="spinner"></div>Učitavanje...</div>
+    </div>
   </div>
 </div>
 </main>
@@ -774,7 +831,7 @@ const _auth = getAuth(_app);
 const _db   = getFirestore(_app);
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let allMatches = [], slip = [], currentUser = null, curDate = 'all';
+let allMatches = [], slip = [], currentUser = null, curDate = 'all', curLeague = 'all';
 let _authReady = false, _matchesReady = false;
 
 // ── Auth state ────────────────────────────────────────────────────────────────
@@ -1012,6 +1069,52 @@ function buildDateTabs() {
   }
 }
 
+function buildLeagueSidebar() {
+  const counts = {};
+  const totalVisible = allMatches.filter(m => !isPast(sheetOfMatch(m)));
+  totalVisible.forEach(m => {
+    if (curDate !== 'all' && sheetOfMatch(m) !== curDate) return;
+    const nat = m.natjecanje || 'Ostalo';
+    counts[nat] = (counts[nat] || 0) + 1;
+  });
+
+  const sidebar = document.getElementById('leagueSidebar');
+  const list    = document.getElementById('leagueList');
+  if (!list) return;
+
+  const leagues = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  if (!leagues.length) { sidebar.style.display = 'none'; return; }
+  sidebar.style.display = '';
+
+  list.innerHTML = '';
+
+  // "Sve" button
+  const allBtn = document.createElement('div');
+  allBtn.className = 'league-item' + (curLeague==='all' ? ' active' : '');
+  allBtn.innerHTML = '<span class="l-name">Sve lige</span><span class="l-count">'
+    + totalVisible.filter(m => curDate==='all' || sheetOfMatch(m)===curDate).length + '</span>';
+  allBtn.onclick = function(){ filterLeague('all', this); };
+  list.appendChild(allBtn);
+
+  leagues.forEach(([nat, cnt]) => {
+    const flag = leagueFlag(nat);
+    const div = document.createElement('div');
+    div.className = 'league-item' + (curLeague===nat ? ' active' : '');
+    div.innerHTML = (flag ? '<span class="l-flag">'+flag+'</span>' : '')
+      + '<span class="l-name">'+nat+'</span>'
+      + '<span class="l-count">'+cnt+'</span>';
+    div.onclick = function(){ filterLeague(nat, this); };
+    list.appendChild(div);
+  });
+}
+
+function filterLeague(league, el) {
+  curLeague = league;
+  document.querySelectorAll('.league-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  renderMatches();
+}
+
 function filterDate(date, el) {
   curDate = date;
   document.querySelectorAll('#dateTabs .ftab').forEach(t => { t.classList.remove('active'); t.style.cssText=''; });
@@ -1059,9 +1162,11 @@ async function loadMatches() {
 }
 
 function renderMatches() {
+  buildLeagueSidebar();
   const wrap = document.getElementById('matchesWrap');
   let list = allMatches.filter(m => !isPast(sheetOfMatch(m)));
   if (curDate !== 'all') list = list.filter(m => sheetOfMatch(m) === curDate);
+  if (curLeague !== 'all') list = list.filter(m => m.natjecanje === curLeague);
   if (!list.length) {
     wrap.innerHTML = '<div class="empty"><div class="ei">⚽</div><p>Nema utakmica za odabrani filter</p></div>';
     return;
@@ -1711,6 +1816,7 @@ window._calcFeeDeposit     = () => calcFeeDeposit();
 window._calcFeeWithdraw    = () => calcFeeWithdraw();
 window.doLogin    = doLogin;
 window._toggleExtra      = (id, btn) => toggleExtra(id, btn);
+window.filterLeague      = filterLeague;
 window._addTestBalance   = () => addTestBalance();
 window.doRegister = doRegister;
 window.openM      = openM;
